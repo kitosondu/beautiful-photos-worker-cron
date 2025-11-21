@@ -1,0 +1,313 @@
+{
+    "example_1_mountain_landscape": {
+        "request": {
+            "photo_url": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80",
+            "photo_description": "Snow-capped mountain peaks against blue sky"
+        },
+        "openrouter_response": {
+            "id": "gen-abc123def456",
+            "model": "google/gemma-3-27b-it",
+            "created": 1700000000,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "{\"content_tags\":[\"nature\",\"mountains\",\"snow\",\"sky\",\"landscape\"],\"people_tags\":[\"no_people\"],\"mood_tags\":[\"peaceful\",\"majestic\",\"serene\",\"inspiring\"],\"color_tags\":[\"blue\",\"white\",\"cold_tones\",\"high_contrast\"],\"quality_tags\":[\"sharp\",\"professional\",\"well_composed\",\"natural_lighting\",\"wide_angle\"],\"confidence\":0.95}"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 485,
+                "completion_tokens": 92,
+                "total_tokens": 577
+            }
+        },
+        "parsed_classification": {
+            "content_tags": ["nature", "mountains", "snow", "sky", "landscape"],
+            "people_tags": ["no_people"],
+            "mood_tags": ["peaceful", "majestic", "serene", "inspiring"],
+            "color_tags": ["blue", "white", "cold_tones", "high_contrast"],
+            "quality_tags": [
+                "sharp",
+                "professional",
+                "well_composed",
+                "natural_lighting",
+                "wide_angle"
+            ],
+            "confidence_score": 0.95
+        },
+        "database_insert": {
+            "photo_id": "abc123",
+            "content_tags": "[\"nature\",\"mountains\",\"snow\",\"sky\",\"landscape\"]",
+            "people_tags": "[\"no_people\"]",
+            "mood_tags": "[\"peaceful\",\"majestic\",\"serene\",\"inspiring\"]",
+            "color_tags": "[\"blue\",\"white\",\"cold_tones\",\"high_contrast\"]",
+            "quality_tags": "[\"sharp\",\"professional\",\"well_composed\",\"natural_lighting\",\"wide_angle\"]",
+            "all_tags_searchable": "nature mountains snow sky landscape no_people peaceful majestic serene inspiring blue white cold_tones high_contrast sharp professional well_composed natural_lighting wide_angle",
+            "classification_status": "completed",
+            "confidence_score": 0.95,
+            "retry_count": 0,
+            "completed_ts": 1700000000
+        }
+    },
+
+    "example_2_urban_street": {
+        "request": {
+            "photo_url": "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&q=80",
+            "photo_description": "Person walking on city street with colorful buildings"
+        },
+        "openrouter_response": {
+            "id": "gen-xyz789ghi012",
+            "model": "google/gemma-3-27b-it",
+            "created": 1700000100,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "{\"content_tags\":[\"urban\",\"street\",\"city\",\"architecture\",\"building\"],\"people_tags\":[\"people\",\"close\",\"single\",\"walking\",\"man\"],\"mood_tags\":[\"energetic\",\"contemporary\",\"vibrant\",\"dynamic\"],\"color_tags\":[\"colorful\",\"warm_tones\",\"vibrant\",\"red\",\"yellow\"],\"quality_tags\":[\"sharp\",\"professional\",\"bokeh\",\"well_composed\",\"natural_lighting\"],\"confidence\":0.92}"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 490,
+                "completion_tokens": 98,
+                "total_tokens": 588
+            }
+        },
+        "parsed_classification": {
+            "content_tags": [
+                "urban",
+                "street",
+                "city",
+                "architecture",
+                "building"
+            ],
+            "people_tags": ["people", "close", "single", "walking", "man"],
+            "mood_tags": ["energetic", "contemporary", "vibrant", "dynamic"],
+            "color_tags": [
+                "colorful",
+                "warm_tones",
+                "vibrant",
+                "red",
+                "yellow"
+            ],
+            "quality_tags": [
+                "sharp",
+                "professional",
+                "bokeh",
+                "well_composed",
+                "natural_lighting"
+            ],
+            "confidence_score": 0.92
+        },
+        "database_insert": {
+            "photo_id": "def456",
+            "content_tags": "[\"urban\",\"street\",\"city\",\"architecture\",\"building\"]",
+            "people_tags": "[\"people\",\"close\",\"single\",\"walking\",\"man\"]",
+            "mood_tags": "[\"energetic\",\"contemporary\",\"vibrant\",\"dynamic\"]",
+            "color_tags": "[\"colorful\",\"warm_tones\",\"vibrant\",\"red\",\"yellow\"]",
+            "quality_tags": "[\"sharp\",\"professional\",\"bokeh\",\"well_composed\",\"natural_lighting\"]",
+            "all_tags_searchable": "urban street city architecture building people close single walking man energetic contemporary vibrant dynamic colorful warm_tones red yellow sharp professional bokeh well_composed natural_lighting",
+            "classification_status": "completed",
+            "confidence_score": 0.92,
+            "retry_count": 0,
+            "completed_ts": 1700000100
+        }
+    },
+
+    "example_3_portrait": {
+        "request": {
+            "photo_url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&q=80",
+            "photo_description": "Close-up portrait of woman with natural lighting"
+        },
+        "openrouter_response": {
+            "id": "gen-mno345pqr678",
+            "model": "google/gemma-3-27b-it",
+            "created": 1700000200,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "{\"content_tags\":[\"portrait\",\"face\",\"close_up\"],\"people_tags\":[\"people\",\"close\",\"single\",\"woman\",\"faces_visible\",\"portrait\"],\"mood_tags\":[\"contemplative\",\"serene\",\"intimate\",\"gentle\"],\"color_tags\":[\"warm_tones\",\"brown\",\"muted\",\"natural_tones\",\"soft\"],\"quality_tags\":[\"sharp\",\"professional\",\"bokeh\",\"natural_lighting\",\"well_composed\",\"soft_focus\"],\"confidence\":0.98}"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 488,
+                "completion_tokens": 105,
+                "total_tokens": 593
+            }
+        },
+        "parsed_classification": {
+            "content_tags": ["portrait", "face", "close_up"],
+            "people_tags": [
+                "people",
+                "close",
+                "single",
+                "woman",
+                "faces_visible",
+                "portrait"
+            ],
+            "mood_tags": ["contemplative", "serene", "intimate", "gentle"],
+            "color_tags": [
+                "warm_tones",
+                "brown",
+                "muted",
+                "natural_tones",
+                "soft"
+            ],
+            "quality_tags": [
+                "sharp",
+                "professional",
+                "bokeh",
+                "natural_lighting",
+                "well_composed",
+                "soft_focus"
+            ],
+            "confidence_score": 0.98
+        },
+        "database_insert": {
+            "photo_id": "ghi789",
+            "content_tags": "[\"portrait\",\"face\",\"close_up\"]",
+            "people_tags": "[\"people\",\"close\",\"single\",\"woman\",\"faces_visible\",\"portrait\"]",
+            "mood_tags": "[\"contemplative\",\"serene\",\"intimate\",\"gentle\"]",
+            "color_tags": "[\"warm_tones\",\"brown\",\"muted\",\"natural_tones\",\"soft\"]",
+            "quality_tags": "[\"sharp\",\"professional\",\"bokeh\",\"natural_lighting\",\"well_composed\",\"soft_focus\"]",
+            "all_tags_searchable": "portrait face close_up people close single woman faces_visible contemplative serene intimate gentle warm_tones brown muted natural_tones soft sharp professional bokeh natural_lighting well_composed soft_focus",
+            "classification_status": "completed",
+            "confidence_score": 0.98,
+            "retry_count": 0,
+            "completed_ts": 1700000200
+        }
+    },
+
+    "example_4_error_invalid_json": {
+        "request": {
+            "photo_url": "https://images.unsplash.com/photo-corrupt?w=600&q=80",
+            "photo_description": "Corrupted or problematic image"
+        },
+        "openrouter_response": {
+            "id": "gen-err123abc456",
+            "model": "google/gemma-3-27b-it",
+            "created": 1700000300,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "I cannot clearly identify the content of this image. It appears to be corrupted or unclear."
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 485,
+                "completion_tokens": 18,
+                "total_tokens": 503
+            }
+        },
+        "error": {
+            "type": "parse_error",
+            "message": "Failed to parse classification: Invalid JSON format in response",
+            "retryable": false
+        },
+        "database_insert": {
+            "photo_id": "err001",
+            "classification_status": "failed",
+            "retry_count": 1,
+            "last_attempt_ts": 1700000300,
+            "error_message": "Failed to parse classification: Invalid JSON format in response"
+        }
+    },
+
+    "example_5_error_missing_required_tags": {
+        "request": {
+            "photo_url": "https://images.unsplash.com/photo-unclear?w=600&q=80",
+            "photo_description": "Very dark or unclear photo"
+        },
+        "openrouter_response": {
+            "id": "gen-err789def012",
+            "model": "google/gemma-3-27b-it",
+            "created": 1700000400,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "{\"content_tags\":[\"dark\",\"unclear\"],\"people_tags\":[],\"mood_tags\":[\"mysterious\"],\"color_tags\":[\"black\",\"dark\"],\"quality_tags\":[\"blurred\",\"low_quality\"],\"confidence\":0.2}"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 485,
+                "completion_tokens": 45,
+                "total_tokens": 530
+            }
+        },
+        "error": {
+            "type": "validation_error",
+            "message": "Missing required people presence tag (no_people or people)",
+            "retryable": true
+        },
+        "database_insert": {
+            "photo_id": "err002",
+            "classification_status": "failed",
+            "retry_count": 1,
+            "last_attempt_ts": 1700000400,
+            "error_message": "Missing required people presence tag (no_people or people)"
+        }
+    },
+
+    "example_6_api_error_rate_limit": {
+        "request": {
+            "photo_url": "https://images.unsplash.com/photo-123456?w=600&q=80",
+            "photo_description": "Normal photo but API rate limited"
+        },
+        "openrouter_response": {
+            "error": {
+                "message": "Rate limit exceeded. Please try again later.",
+                "type": "rate_limit_error",
+                "code": 429
+            }
+        },
+        "error": {
+            "type": "rate_limit_error",
+            "message": "Rate limit exceeded",
+            "retryable": true,
+            "statusCode": 429
+        },
+        "database_insert": {
+            "photo_id": "err003",
+            "classification_status": "failed",
+            "retry_count": 1,
+            "last_attempt_ts": 1700000500,
+            "error_message": "Rate limit exceeded"
+        }
+    },
+
+    "metadata": {
+        "notes": [
+            "These examples show the complete flow from API request to database insert",
+            "Error examples demonstrate different failure scenarios",
+            "All timestamps are Unix timestamps in seconds",
+            "JSON fields in database are stored as TEXT (stringified JSON)",
+            "all_tags_searchable is generated by joining all tag arrays with spaces",
+            "Token usage varies based on prompt complexity and response length"
+        ],
+        "average_metrics": {
+            "prompt_tokens": "~485-490",
+            "completion_tokens": "~45-105",
+            "total_tokens": "~530-595",
+            "estimated_cost_per_photo": "$0.0001-0.0002",
+            "response_time": "2-5 seconds",
+            "confidence_threshold": 0.3
+        }
+    }
+}
