@@ -23,6 +23,9 @@ A Cloudflare Worker scheduled job (cron) that performs database maintenance for 
 ### Database
 - **Database Name**: unsplash_photos
 
+The most important notes:
+- Table `photos` contains photo metadata. Every time Beautiful Photos Worker serves a photo from Unsplash API, it saves metadata in this table. This data can be used as cached data or my own photo database.
+
 ## Related Systems
 This worker is part of the Beautiful Photos ecosystem. See the "Beautiful Photos Worker" repository for complete database schema and photos API "Beautiful Photos Chrome Extension" for UI.
 
