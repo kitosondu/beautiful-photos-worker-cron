@@ -11,7 +11,14 @@ This document details the integration with OpenRouter API for photo classificati
 https://openrouter.ai/api/v1/chat/completions
 ```
 
-### Model Selection
+### Model Selection Strategy
+
+**Primary Model (Default):**
+```
+google/gemma-3-27b-it:free
+```
+
+**Fallback Model (on errors):**
 ```
 google/gemma-3-27b-it
 ```
@@ -21,6 +28,13 @@ google/gemma-3-27b-it
 - Good balance of accuracy and cost
 - Fast response times
 - Available through OpenRouter with competitive pricing
+- Free tier available for development and testing
+
+**Fallback Strategy:**
+- Always try the free model first
+- On ANY error (rate limit, model error, etc.), automatically fallback to paid model
+- Log all fallbacks to database for cost tracking
+- This ensures maximum reliability while minimizing costs
 
 ### Authentication
 ```typescript
@@ -240,7 +254,8 @@ interface OpenRouterResponse {
 ```typescript
 async function callOpenRouterAPI(
   photoUrl: string,
-  apiKey: string
+  apiKey: string,
+  model: string = 'google/gemma-3-27b-it:free'
 ): Promise<ClassificationResult> {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -251,7 +266,7 @@ async function callOpenRouterAPI(
       'X-Title': 'Beautiful Photos Classification'
     },
     body: JSON.stringify({
-      model: 'google/gemma-3-27b-it',
+      model, // Use provided model (free or paid)
       messages: [
         {
           role: 'user',
@@ -279,6 +294,66 @@ async function callOpenRouterAPI(
 
   const data: OpenRouterResponse = await response.json();
   return parseClassificationResponse(data);
+}
+```
+
+### Fallback Wrapper Function
+
+```typescript
+interface ClassificationWithModel {
+  result: ClassificationResult;
+  modelUsed: 'free' | 'paid';
+}
+
+async function classifyPhotoWithFallback(
+  photoUrl: string,
+  apiKey: string,
+  logger: WorkerLogger,
+  photoId: string
+): Promise<ClassificationWithModel> {
+  const DEFAULT_MODEL = 'google/gemma-3-27b-it:free';
+  const FALLBACK_MODEL = 'google/gemma-3-27b-it';
+
+  try {
+    // Try free model first
+    logger.info('Attempting classification with free model', {
+      photo_id: photoId,
+      model: DEFAULT_MODEL
+    });
+    
+    const result = await callOpenRouterAPI(photoUrl, apiKey, DEFAULT_MODEL);
+    
+    logger.info('Free model classification successful', {
+      photo_id: photoId,
+      confidence: result.confidence_score
+    });
+    
+    return { result, modelUsed: 'free' };
+    
+  } catch (error) {
+    // Log fallback attempt (saves to DB)
+    await logger.warn('Falling back to paid model', {
+      photo_id: photoId,
+      model_used: 'free',
+      error: error.message,
+      reason: error.message.includes('429') ? 'rate_limit' : 'error'
+    });
+
+    // Try paid model
+    logger.info('Attempting classification with paid model', {
+      photo_id: photoId,
+      model: FALLBACK_MODEL
+    });
+    
+    const result = await callOpenRouterAPI(photoUrl, apiKey, FALLBACK_MODEL);
+    
+    logger.info('Paid model classification successful', {
+      photo_id: photoId,
+      confidence: result.confidence_score
+    });
+    
+    return { result, modelUsed: 'paid' };
+  }
 }
 ```
 
@@ -638,6 +713,50 @@ async function classifyWithLogging(
 }
 ```
 
+## Model Fallback Strategy Details
+
+### Why Fallback on ALL Errors?
+
+Instead of trying to detect specific error types, we fallback on **any error** for simplicity and reliability:
+
+**Advantages:**
+- **Simpler Logic**: No need to parse error types and codes
+- **More Reliable**: Handles unexpected errors gracefully
+- **User Experience**: Ensures classifications always complete
+- **Cost Effective**: Only pay for paid model when free model fails
+
+**Error Types that Trigger Fallback:**
+- Rate limit exceeded (429)
+- Model unavailable (503)
+- Request timeout
+- Invalid response format
+- Any other API error
+
+### Cost Monitoring
+
+Track paid model usage:
+
+```typescript
+// In database logs
+SELECT 
+  DATE(timestamp, 'unixepoch') as date,
+  model_used,
+  COUNT(*) as count
+FROM classification_logs
+WHERE model_used IS NOT NULL
+GROUP BY date, model_used
+ORDER BY date DESC;
+
+// Expected: >90% should be 'free', <10% 'paid'
+```
+
+### Cost Optimization Tips
+
+1. **Monitor Free Quota**: Check OpenRouter dashboard regularly
+2. **Rate Limit Awareness**: Free tier has lower rate limits
+3. **Batch Timing**: Space out cron runs if hitting rate limits often
+4. **Alert on High Paid Usage**: Set up alerts if >20% using paid model
+
 ## Future Enhancements
 
 1. **Batch API Support**: Implement if/when OpenRouter supports multiple images per request
@@ -645,3 +764,4 @@ async function classifyWithLogging(
 3. **Model Switching**: Support multiple models based on requirements
 4. **Streaming Responses**: Use streaming if supported for faster initial results
 5. **Custom Fine-tuning**: Train custom model for better tag consistency
+6. **Smart Fallback**: Use cheaper models for simpler photos, expensive for complex ones

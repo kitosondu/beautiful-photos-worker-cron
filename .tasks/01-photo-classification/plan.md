@@ -95,11 +95,18 @@ This document outlines the plan for implementing automatic photo classification 
 - **Language**: TypeScript 5.5.2
 - **Database**: Cloudflare D1 (SQLite at edge)
 - **LLM Provider**: OpenRouter.ai
-- **LLM Model**: Google Gemma 3 27B IT
+- **LLM Model (Primary)**: Google Gemma 3 27B IT (free tier)
+- **LLM Model (Fallback)**: Google Gemma 3 27B IT (paid tier)
 
 ### Dependencies
 - Existing project dependencies (no new production deps)
 - OpenRouter API key (stored in environment variables)
+
+### Model Strategy
+- **Default**: Use `google/gemma-3-27b-it:free` model
+- **Fallback**: Automatically switch to `google/gemma-3-27b-it` (paid) on ANY error
+- **Logging**: All fallbacks logged to database for cost monitoring
+- **Expected Usage**: >90% free, <10% paid
 
 ## Processing Strategy
 
@@ -167,11 +174,33 @@ See [categorization-schema.md](./categorization-schema.md) for detailed breakdow
 
 See [database-schema.md](./database-schema.md) for detailed schema.
 
-### Key Design Decisions (To Be Finalized)
-- JSON vs separate columns for tag storage
-- Normalization vs denormalization
-- Index strategy for filtering
-- Full-text search capabilities
+### Final Design: Normalized with Search Optimization
+
+**Architecture:**
+```
+photo_classifications (main table)
+  ├── all_tags_searchable (denormalized for fast search)
+  └── metadata (status, confidence, timestamps)
+
+tags (tag dictionary)
+  └── tag metadata (name, category, usage_count)
+
+photo_tags (many-to-many relationship)
+  └── links photos to tags
+
+classification_logs (audit trail)
+  └── critical events (errors, model fallbacks)
+
+photo_classifications_fts (FTS5 virtual table)
+  └── full-text search on all_tags_searchable
+```
+
+**Benefits:**
+- ✅ Tag normalization and reusability
+- ✅ Usage statistics tracking
+- ✅ Fast search via denormalized field + FTS5
+- ✅ Referential integrity
+- ✅ Easy tag analytics and management
 
 ## API Integration
 
@@ -179,10 +208,29 @@ See [api-integration.md](./api-integration.md) for implementation details.
 
 ### OpenRouter Configuration
 - **Endpoint**: `https://openrouter.ai/api/v1/chat/completions`
-- **Model**: `google/gemma-3-27b-it`
+- **Primary Model**: `google/gemma-3-27b-it:free`
+- **Fallback Model**: `google/gemma-3-27b-it` (paid)
 - **Authentication**: Bearer token from `OPENROUTER_API_KEY`
 - **Input**: Photo URLs + structured prompt
 - **Output**: JSON with categorized tags
+
+### Automatic Fallback Strategy
+```typescript
+async function classifyPhotoWithFallback(photoUrl, apiKey, logger, photoId) {
+  try {
+    // Try free model
+    return await callOpenRouterAPI(photoUrl, apiKey, 'google/gemma-3-27b-it:free');
+  } catch (error) {
+    // Log fallback (saves to DB)
+    await logger.warn('Falling back to paid model', { photo_id, error });
+    
+    // Try paid model
+    return await callOpenRouterAPI(photoUrl, apiKey, 'google/gemma-3-27b-it');
+  }
+}
+```
+
+**Fallback Triggers:** Any error (rate limit, timeout, server error, etc.)
 
 ## Implementation Phases
 
@@ -301,8 +349,10 @@ wrangler secret put OPENROUTER_API_KEY
 ## Related Documentation
 
 - [categorization-schema.md](./categorization-schema.md) - Detailed tag schema
-- [api-integration.md](./api-integration.md) - OpenRouter integration
-- [database-schema.md](./database-schema.md) - Database design
+- [api-integration.md](./api-integration.md) - OpenRouter integration with fallback
+- [database-schema.md](./database-schema.md) - Normalized database design
+- [logging-strategy.md](./logging-strategy.md) - Hybrid logging approach
+- [test-endpoint.md](./test-endpoint.md) - Test classification endpoint
 - [implementation-checklist.md](./implementation-checklist.md) - Step-by-step guide
 - [examples/prompt-example.md](./examples/prompt-example.md) - LLM prompt
 - [examples/response-example.json](./examples/response-example.json) - Sample response
@@ -311,17 +361,55 @@ wrangler secret put OPENROUTER_API_KEY
 
 ### Resolved
 - ✅ LLM Provider: OpenRouter with Gemma 3 27B
+- ✅ Model Strategy: Free tier by default, paid as fallback
 - ✅ Classification Categories: 5 categories (content, people, mood, color, quality)
 - ✅ Batch Size: Start with 5 photos
 - ✅ Cron Schedule: Every minute
 - ✅ Predefined Tags: Yes, with flexibility for new tags
 - ✅ "Close" People Definition: Portrait, within 1-2m, or >30% of frame
+- ✅ Database Schema: Normalized with denormalized search field + FTS5
+- ✅ Logging Strategy: Hybrid (console + DB for critical events)
+- ✅ Test Endpoint: `/test-classify?photo_id={id}` with HTML interface
+- ✅ Fallback Strategy: Automatic on any error, log to DB
 
 ### Pending
-- ⏳ Database schema optimization (JSON vs columns)
 - ⏳ Multi-image API batch support verification
-- ⏳ Index strategy for efficient filtering
-- ⏳ Confidence score usage strategy
+- ⏳ Performance optimization based on production data
+3. Custom user preferences learning
+4. Advanced filtering combinations
+5. Photo quality scoring
+6. Duplicate detection using tags
+
+## Related Documentation
+
+- [categorization-schema.md](./categorization-schema.md) - Detailed tag schema
+- [api-integration.md](./api-integration.md) - OpenRouter integration with fallback
+- [database-schema.md](./database-schema.md) - Normalized database design
+- [logging-strategy.md](./logging-strategy.md) - Hybrid logging approach
+- [test-endpoint.md](./test-endpoint.md) - Test classification endpoint
+- [implementation-checklist.md](./implementation-checklist.md) - Step-by-step guide
+- [examples/prompt-example.md](./examples/prompt-example.md) - LLM prompt
+- [examples/response-example.json](./examples/response-example.json) - Sample response
+
+## Questions & Decisions Log
+
+### Resolved
+- ✅ LLM Provider: OpenRouter with Gemma 3 27B
+- ✅ Model Strategy: Free tier by default, paid as fallback
+- ✅ Classification Categories: 5 categories (content, people, mood, color, quality)
+- ✅ Batch Size: Start with 5 photos
+- ✅ Cron Schedule: Every minute
+- ✅ Predefined Tags: Yes, with flexibility for new tags
+- ✅ "Close" People Definition: Portrait, within 1-2m, or >30% of frame
+- ✅ Database Schema: Normalized with denormalized search field + FTS5
+- ✅ Logging Strategy: Hybrid (console + DB for critical events)
+- ✅ Test Endpoint: `/test-classify?photo_id={id}` with HTML interface
+- ✅ Fallback Strategy: Automatic on any error, log to DB
+
+### Pending
+- ⏳ Multi-image API batch support verification
+- ⏳ Performance optimization based on production data
+- ⏳ Cost monitoring and alerting setup
 
 ## Project Timeline
 

@@ -9,41 +9,56 @@ This document provides a step-by-step implementation guide for the photo classif
 ## Phase 1: Database Setup
 
 ### 1.1 Create Migration File
-- [ ] Create `src/migrations/002_photo_classifications.sql`
-- [ ] Copy schema from `database-schema.md` (Hybrid Approach)
-- [ ] Include main table, indexes, FTS virtual table, and triggers
+- [x] Create `src/migrations/20241125010000_photo_classifications.sql` ✅
+- [x] Schema includes 4 tables: `photo_classifications`, `tags`, `photo_tags`, `classification_logs` ✅
+- [x] Indexes, FTS5 virtual table, and triggers included ✅
 - [ ] Test migration locally with Wrangler
+
+**Migration Files:**
+```
+src/migrations/
+├── 20241125000000_init.sql                        (renamed from init.sql)
+└── 20241125010000_photo_classifications.sql       (new)
+```
 
 **Commands:**
 ```bash
 # Test migration locally
-wrangler d1 execute unsplash_photos --local --file=./src/migrations/002_photo_classifications.sql
+wrangler d1 execute unsplash_photos --local --file=./src/migrations/20241125010000_photo_classifications.sql
 
 # Apply to production
-wrangler d1 execute unsplash_photos --file=./src/migrations/002_photo_classifications.sql
+wrangler d1 execute unsplash_photos --file=./src/migrations/20241125010000_photo_classifications.sql
 ```
+
+**Note:** Migration files use timestamp format `YYYYMMDDHHmmss_name.sql` for versioning.
+This allows copying migrations between repositories and applying in correct order.
 
 ### 1.2 Update TypeScript Types
 - [ ] Add classification types to `src/helpers/types.ts`
-- [ ] Define `PhotoClassification` interface
-- [ ] Define `ClassificationResult` interface
-- [ ] Define `ClassificationStatus` type
+- [ ] Define `PhotoClassification` interface (for main table)
+- [ ] Define `Tag` interface (for tag dictionary)
+- [ ] Define `ClassificationResult` interface (for API result)
+- [ ] Define `ClassificationLog` interface (for logging)
 
 **Example:**
 ```typescript
 export interface PhotoClassification {
   photo_id: string;
-  content_tags: string[];
-  people_tags: string[];
-  mood_tags: string[];
-  color_tags: string[];
-  quality_tags: string[];
+  all_tags_searchable: string;
   classification_status: 'pending' | 'completed' | 'failed';
   confidence_score?: number;
   retry_count: number;
   last_attempt_ts?: number;
   completed_ts?: number;
   error_message?: string;
+}
+
+export interface Tag {
+  tag_id: number;
+  tag_name: string;
+  tag_category: 'content' | 'people' | 'mood' | 'color' | 'quality';
+  usage_count: number;
+  created_ts: number;
 }
 
 export interface ClassificationResult {
@@ -53,33 +68,65 @@ export interface ClassificationResult {
   color_tags: string[];
   quality_tags: string[];
   confidence_score: number;
-  tokens_used?: number;
+}
+
+export interface ClassificationLog {
+  id: number;
+  timestamp: number;
+  photo_id: string;
+  event_type: 'attempt' | 'success' | 'error' | 'model_fallback';
+  model_used?: 'free' | 'paid';
+  error_message?: string;
+  processing_time_ms?: number;
+  confidence_score?: number;
 }
 ```
 
 ---
 
-## Phase 2: OpenRouter API Integration
+## Phase 2: Logging Setup
 
-### 2.1 Create API Client Module
+### 2.1 Create Logger Module
+- [ ] Create `src/utils/logger.ts`
+- [ ] Implement `WorkerLogger` class with 4 levels (DEBUG, INFO, WARN, ERROR)
+- [ ] Add structured JSON logging
+- [ ] Implement DB logging for critical events
+- [ ] Add error handling (logging failures shouldn't break app)
+
+**Key Methods:**
+```typescript
+class WorkerLogger {
+  debug(message: string, meta?: LogMetadata): void
+  info(message: string, meta?: LogMetadata): void
+  async warn(message: string, meta?: LogMetadata): Promise<void>
+  async error(message: string, error: Error, meta?: LogMetadata): Promise<void>
+}
+```
+
+---
+
+## Phase 3: OpenRouter API Integration
+
+### 3.1 Create API Client Module
 - [ ] Create `src/api/openrouter-client.ts`
-- [ ] Implement `callOpenRouterAPI()` function
+- [ ] Implement `callOpenRouterAPI()` function with `model` parameter
+- [ ] Implement `classifyPhotoWithFallback()` wrapper (free → paid)
 - [ ] Implement `parseClassificationResponse()` function
 - [ ] Add error handling and type definitions
 - [ ] Add validation for classification response
 
 **Key Functions:**
-- `callOpenRouterAPI(photoUrl: string, apiKey: string): Promise<ClassificationResult>`
+- `callOpenRouterAPI(photoUrl: string, apiKey: string, model: string): Promise<ClassificationResult>`
+- `classifyPhotoWithFallback(photoUrl, apiKey, logger, photoId): Promise<{result, modelUsed}>`
 - `parseClassificationResponse(response: OpenRouterResponse): ClassificationResult`
-- `categorizeError(error: any): APIError`
 
-### 2.2 Create Prompt Template
+### 3.2 Create Prompt Template
 - [ ] Create `src/prompts/classification-prompt.ts`
 - [ ] Copy structured prompt from `api-integration.md`
 - [ ] Export as constant `CLASSIFICATION_PROMPT`
 - [ ] Consider making prompt customizable if needed
 
-### 2.3 Add URL Generation Helper
+### 3.3 Add URL Generation Helper
 - [ ] Create `src/helpers/photo-url.ts`
 - [ ] Implement `generatePhotoUrl(rawPath: string): string`
 - [ ] Add parameters for width and quality optimization
@@ -98,9 +145,9 @@ export function generatePhotoUrl(
 
 ---
 
-## Phase 3: Classification Logic
+## Phase 4: Classification Logic
 
-### 3.1 Create Photo Classifier Module
+### 4.1 Create Photo Classifier Module
 - [ ] Create `src/classifiers/photo-classifier.ts`
 - [ ] Implement main `classifyPhotos()` function
 - [ ] Implement `classifySinglePhoto()` helper
@@ -137,34 +184,32 @@ async function saveClassificationError(
 ): Promise<void>
 ```
 
-### 3.2 Implement Database Operations
+### 4.2 Implement Database Operations
 - [ ] Create `src/db/classification-queries.ts`
 - [ ] Implement `getUnclassifiedPhotos()`
-- [ ] Implement `saveClassification()`
+- [ ] Implement `saveClassification()` - complex! (normalizes tags into 3 tables)
+- [ ] Implement `getPhotoById()` for test endpoint
+- [ ] Implement `getPhotoClassification()` - retrieves with tags by category
 - [ ] Implement `updateClassificationError()`
 - [ ] Implement `getClassificationStats()`
 
+**Key Implementation Notes:**
+`saveClassification()` must:
+1. Build `all_tags_searchable` string (space-separated all tags)
+2. Insert/update `photo_classifications` table
+3. Delete old `photo_tags` relationships
+4. For each tag: insert into `tags` (or increment usage_count), get tag_id, insert into `photo_tags`
+
 **Query Functions:**
 ```typescript
-async function getUnclassifiedPhotos(
-  db: D1Database,
-  limit: number
-): Promise<Photo[]>
-
-async function saveClassification(
-  db: D1Database,
-  photoId: string,
-  classification: ClassificationResult
-): Promise<void>
-
-async function updateClassificationError(
-  db: D1Database,
-  photoId: string,
-  errorMessage: string
-): Promise<void>
+async function getUnclassifiedPhotos(db: D1Database, limit: number): Promise<Photo[]>
+async function saveClassification(db: D1Database, photoId: string, classification: ClassificationResult): Promise<void>
+async function getPhotoById(db: D1Database, photoId: string): Promise<Photo | null>
+async function getPhotoClassification(db: D1Database, photoId: string): Promise<PhotoClassification & ClassificationResult>
+async function updateClassificationError(db: D1Database, photoId: string, errorMessage: string): Promise<void>
 ```
 
-### 3.3 Add Validation Logic
+### 4.3 Add Validation Logic
 - [ ] Create `src/validators/classification-validator.ts`
 - [ ] Implement tag validation rules
 - [ ] Check people_tags requirements
@@ -173,9 +218,9 @@ async function updateClassificationError(
 
 ---
 
-## Phase 4: Cron Integration
+## Phase 5: Cron Integration
 
-### 4.1 Update Main Worker File
+### 5.1 Update Main Worker File
 - [ ] Modify `src/index.ts`
 - [ ] Import classifier module
 - [ ] Add classification logic to `scheduled()` handler
@@ -204,38 +249,45 @@ async function scheduled(
 }
 ```
 
-### 4.2 Add Manual Trigger Endpoint
+### 5.2 Add Manual Trigger Endpoints
+
+**Batch Classification Endpoint:**
 - [ ] Update `fetch()` handler in `src/index.ts`
 - [ ] Add route for `/classify-photos`
 - [ ] Implement manual trigger logic
 - [ ] Return classification stats in response
-- [ ] Add authentication if needed
 
-**Example:**
+**Test Classification Endpoint:**
+- [ ] Create `src/handlers/test-classify.ts`
+- [ ] Implement `handleTestClassify(request, env)` function
+- [ ] Create `generateSuccessHTML()` function for visual results
+- [ ] Create `generateErrorHTML()` function for errors
+- [ ] Add route for `/test-classify` in main worker
+- [ ] Test endpoint performs FULL classification + save to DB
+
+See [test-endpoint.md](./test-endpoint.md) for detailed implementation.
+
+**Example Routes:**
 ```typescript
 async function fetch(request: Request, env: Env, ctx: ExecutionContext) {
   const url = new URL(request.url);
   
+  // Batch classification
   if (url.pathname === '/classify-photos') {
-    try {
-      const stats = await classifyPhotos(env, 10); // Process 10 photos
-      return Response.json({
-        success: true,
-        stats
-      });
-    } catch (error) {
-      return Response.json({
-        success: false,
-        error: error.message
-      }, { status: 500 });
-    }
+    const stats = await classifyPhotos(env, 10);
+    return Response.json({ success: true, stats });
   }
   
-  return new Response('Hello World!');
+  // Test single photo with HTML result
+  if (url.pathname === '/test-classify') {
+    return await handleTestClassify(request, env);
+  }
+  
+  return new Response('Beautiful Photos Worker Cron');
 }
 ```
 
-### 4.3 Update Wrangler Configuration
+### 5.3 Update Wrangler Configuration
 - [ ] Update `wrangler.jsonc`
 - [ ] Add new cron schedule if different from existing
 - [ ] Ensure environment variables are configured
@@ -255,79 +307,100 @@ async function fetch(request: Request, env: Env, ctx: ExecutionContext) {
 
 ---
 
-## Phase 5: Environment Configuration
+## Phase 6: Environment Configuration
 
-### 5.1 Update Environment Variables
+### 6.1 Update Environment Variables
 - [ ] Add `OPENROUTER_API_KEY` to `.dev.vars` (already done)
 - [ ] Verify API key is valid
 - [ ] Test API connection
 
-### 5.2 Configure Production Secrets
+### 6.2 Configure Production Secrets
 - [ ] Set production secret for `OPENROUTER_API_KEY`
 ```bash
 wrangler secret put OPENROUTER_API_KEY
 ```
 
-### 5.3 Update TypeScript Env Interface
+### 6.3 Update TypeScript Env Interface
 - [ ] Update `Env` interface in `src/index.ts` or types file
 ```typescript
 interface Env {
   DB: D1Database;
   OPENROUTER_API_KEY: string;
+  ENVIRONMENT?: 'development' | 'production'; // Optional for logger
 }
 ```
 
 ---
 
-## Phase 6: Testing
+## Phase 7: Testing
 
-### 6.1 Unit Tests
+### 7.1 Unit Tests
+- [ ] Create test file `test/logger.spec.ts` for logger
 - [ ] Create test file `test/classification.spec.ts`
 - [ ] Test URL generation function
 - [ ] Test response parsing logic
 - [ ] Test validation functions
 - [ ] Mock OpenRouter API responses
 
-### 6.2 Integration Tests
+### 7.2 Integration Tests
 - [ ] Test database operations locally
 - [ ] Test full classification flow with mock data
 - [ ] Test error handling paths
 - [ ] Test retry logic
 
-### 6.3 Manual Testing
+### 7.3 Manual Testing
+
+**Using Test Endpoint:**
 - [ ] Run local dev server: `npm run dev`
+- [ ] Open browser: `http://localhost:8787/test-classify?photo_id=YOUR_PHOTO_ID`
+- [ ] Verify HTML displays correctly with photo and classification
+- [ ] Check if model used is shown (free/paid)
+- [ ] Verify data saved to database
+- [ ] Test with invalid photo_id (should show error page)
+
+**Using Batch Endpoint:**
 - [ ] Trigger manual classification: `curl http://localhost:8787/classify-photos`
 - [ ] Check logs for errors
 - [ ] Verify database updates
-- [ ] Test with various photo types
 
 **Test Checklist:**
 - [ ] Photos without people
-- [ ] Photos with close people
+- [ ] Photos with close people (portrait, <2m, >30% frame)
 - [ ] Photos with distant people
-- [ ] Different content types (nature, urban, etc.)
+- [ ] Different content types (nature, urban, architecture, etc.)
 - [ ] Edge cases (blurred, dark photos, etc.)
+- [ ] Free model works (most cases)
+- [ ] Fallback to paid model works (simulate by using invalid free model)
+- [ ] Logging works (check console and database)
 
 ---
 
-## Phase 7: Deployment
+## Phase 8: Deployment
 
-### 7.1 Pre-Deployment Checks
+### 8.1 Pre-Deployment Checks
 - [ ] All tests passing
 - [ ] No TypeScript errors
 - [ ] Code reviewed and cleaned up
 - [ ] Logging is appropriate (not too verbose)
 - [ ] Error handling is comprehensive
 
-### 7.2 Deploy Database Migration
+### 8.2 Deploy Database Migration
 - [ ] Backup production database (if possible)
 - [ ] Run migration in production
 ```bash
-wrangler d1 execute unsplash_photos --file=./src/migrations/002_photo_classifications.sql
+wrangler d1 execute unsplash_photos --file=./src/migrations/20241125010000_photo_classifications.sql
 ```
 - [ ] Verify tables created successfully
+```sql
+-- Verify tables exist
+SELECT name FROM sqlite_master WHERE type='table' 
+AND name IN ('photo_classifications', 'tags', 'photo_tags', 'classification_logs');
 
-### 7.3 Deploy Worker
+-- Verify FTS5 table
+SELECT name FROM sqlite_master WHERE type='table' AND name='photo_classifications_fts';
+```
+
+### 8.3 Deploy Worker
 - [ ] Deploy to production
 ```bash
 npm run deploy
@@ -335,7 +408,7 @@ npm run deploy
 - [ ] Verify deployment successful
 - [ ] Check worker logs in Cloudflare dashboard
 
-### 7.4 Set Production Secrets
+### 8.4 Set Production Secrets
 - [ ] Set `OPENROUTER_API_KEY` secret
 ```bash
 wrangler secret put OPENROUTER_API_KEY
@@ -343,27 +416,41 @@ wrangler secret put OPENROUTER_API_KEY
 
 ---
 
-## Phase 8: Monitoring & Validation
+## Phase 9: Monitoring & Validation
 
-### 8.1 Initial Monitoring
-- [ ] Monitor Cloudflare Worker logs
+### 9.1 Initial Monitoring
+- [ ] Monitor Cloudflare Worker logs (real-time via Dashboard or `wrangler tail`)
 - [ ] Check cron execution frequency
-- [ ] Verify classifications are being saved
-- [ ] Monitor API usage and costs
-- [ ] Check for errors in logs
+- [ ] Verify classifications are being saved to all 3 tables
+- [ ] Monitor API usage and costs (check for paid model usage)
+- [ ] Check for errors in logs (both console and database)
+- [ ] Monitor model fallback frequency (should be <10%)
 
-### 8.2 Data Validation
+### 9.2 Data Validation
 - [ ] Query database for classification stats
 ```sql
+-- Classification status
 SELECT classification_status, COUNT(*) as count
 FROM photo_classifications
 GROUP BY classification_status;
-```
-- [ ] Sample check classification quality
-- [ ] Verify tag distributions make sense
-- [ ] Check confidence scores
 
-### 8.3 Performance Monitoring
+-- Tag statistics
+SELECT tag_category, COUNT(*) as unique_tags, SUM(usage_count) as total_usage
+FROM tags
+GROUP BY tag_category;
+
+-- Model usage
+SELECT model_used, COUNT(*) as count
+FROM classification_logs
+WHERE model_used IS NOT NULL
+GROUP BY model_used;
+```
+- [ ] Sample check classification quality using test endpoint
+- [ ] Verify tag distributions make sense (top 20 tags query)
+- [ ] Check confidence scores
+- [ ] Verify `all_tags_searchable` field is populated correctly
+
+### 9.3 Performance Monitoring
 - [ ] Monitor worker CPU time usage
 - [ ] Check average classification time
 - [ ] Monitor API response times
@@ -379,42 +466,46 @@ GROUP BY classification_status;
 
 ---
 
-## Phase 9: Optimization (Post-Launch)
+## Phase 10: Optimization (Post-Launch)
 
-### 9.1 Batch Processing Optimization
+### 10.1 Batch Processing Optimization
 - [ ] Test if OpenRouter supports multi-image requests
 - [ ] If yes, implement batch API calls
 - [ ] Adjust batch size based on performance
 - [ ] Monitor cost savings
 
-### 9.2 Performance Tuning
+### 10.2 Performance Tuning
+- [ ] Analyze slow queries (especially normalized joins)
 - [ ] Analyze slow queries
 - [ ] Optimize database indexes if needed
 - [ ] Adjust cron frequency based on needs
 - [ ] Fine-tune confidence thresholds
 
-### 9.3 Cost Optimization
+### 10.3 Cost Optimization
 - [ ] Monitor API costs per photo
+- [ ] Track free vs paid model usage ratio
+- [ ] Alert if >20% using paid model (indicates quota issues)
 - [ ] Optimize image sizes if costs are high
 - [ ] Consider caching frequently classified patterns
 - [ ] Adjust processing rate if needed
 
 ---
 
-## Phase 10: Documentation Updates
+## Phase 11: Documentation Updates
 
-### 10.1 Update Memory Bank
+### 11.1 Update Memory Bank
 - [ ] Update `memory-bank/projectbrief.md` with new feature
-- [ ] Update `memory-bank/systemPatterns.md` with architecture
+- [ ] Update `memory-bank/systemPatterns.md` with normalized DB architecture
 - [ ] Update `memory-bank/techContext.md` with new dependencies
 - [ ] Update `memory-bank/progress.md` with completion status
-- [ ] Update `memory-bank/activeContext.md` with learnings
+- [ ] Update `memory-bank/activeContext.md` with learnings and patterns
 
-### 10.2 Update README
+### 11.2 Update README
 - [ ] Document new classification feature
 - [ ] Add setup instructions
-- [ ] Document manual trigger endpoint
+- [ ] Document both endpoints (`/classify-photos` and `/test-classify`)
 - [ ] Add troubleshooting section
+- [ ] Document model fallback strategy
 
 ---
 
@@ -461,17 +552,19 @@ The implementation is considered successful when:
 
 ## Timeline Estimate
 
-- **Phase 1-2**: 2-3 hours (Database + API setup)
-- **Phase 3**: 3-4 hours (Classification logic)
-- **Phase 4**: 1-2 hours (Cron integration)
-- **Phase 5**: 30 minutes (Environment config)
-- **Phase 6**: 2-3 hours (Testing)
-- **Phase 7**: 1 hour (Deployment)
-- **Phase 8**: 1-2 hours (Monitoring)
-- **Phase 9**: Ongoing (Optimization)
-- **Phase 10**: 1 hour (Documentation)
+- **Phase 1**: 1-2 hours (Database setup - more complex with normalized schema)
+- **Phase 2**: 1 hour (Logging setup)
+- **Phase 3**: 2-3 hours (API integration with fallback)
+- **Phase 4**: 3-4 hours (Classification logic with complex DB operations)
+- **Phase 5**: 1-2 hours (Cron integration + test endpoint)
+- **Phase 6**: 30 minutes (Environment config)
+- **Phase 7**: 2-3 hours (Testing - more scenarios with fallback and logging)
+- **Phase 8**: 1 hour (Deployment)
+- **Phase 9**: 1-2 hours (Monitoring)
+- **Phase 10**: Ongoing (Optimization)
+- **Phase 11**: 1 hour (Documentation)
 
-**Total Estimated Time**: 12-18 hours across 2-3 sessions
+**Total Estimated Time**: 14-20 hours across 2-3 sessions
 
 ---
 
