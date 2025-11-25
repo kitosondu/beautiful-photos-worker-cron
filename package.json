@@ -1,22 +1,22 @@
 {
-	"name": "beautiful-photos-worker-cron",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20250319.0",
-		"npm-check-updates": "^17.1.15",
-		"typescript": "^5.5.2",
-		"vitest": "^3.2.4",
-		"wrangler": "^4.2.0"
-	},
-	"volta": {
-		"node": "20.19.0"
-	}
+    "name": "beautiful-photos-worker-cron",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "deploy": "wrangler deploy",
+        "dev": "wrangler dev",
+        "start": "wrangler dev",
+        "test": "vitest",
+        "cf-typegen": "wrangler types"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20250319.0",
+        "npm-check-updates": "^19.1.2",
+        "typescript": "^5.9.3",
+        "vitest": "^3.2.4",
+        "wrangler": "^4.50.0"
+    },
+    "volta": {
+        "node": "20.19.0"
+    }
 }
