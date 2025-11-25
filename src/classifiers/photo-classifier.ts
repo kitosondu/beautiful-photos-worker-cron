@@ -9,6 +9,7 @@ import { generatePhotoUrl } from '../helpers/photo-url';
 import { classifyPhotoWithFallback } from '../api/openrouter-client';
 import {
     getUnclassifiedPhotos,
+    getPhotoById,
     markPhotoAsProcessing,
     saveClassification,
     saveClassificationError,
@@ -155,4 +156,36 @@ async function classifySinglePhoto(
         confidence: result.confidence_score,
         processing_time_ms: processingTime,
     });
+}
+
+/**
+ * Classify a specific photo by ID
+ * Used for testing and manual re-classification
+ *
+ * @param env - Worker environment with DB and API key
+ * @param photoId - Specific photo ID to classify
+ * @throws Error if photo not found or classification fails
+ */
+export async function classifyPhotoById(
+    env: Env,
+    photoId: string
+): Promise<void> {
+    const logger = new WorkerLogger(env, 'photo-classifier');
+
+    // Get photo from database
+    const photoWithData = await getPhotoById(env.DB, photoId);
+
+    if (!photoWithData) {
+        throw new Error(`Photo not found: ${photoId}`);
+    }
+
+    // Convert to Photo format for classifySinglePhoto
+    const photo: Photo = {
+        photo_id: photoWithData.photo_id,
+        data_json: photoWithData.data_json,
+        created_ts: photoWithData.created_ts,
+    };
+
+    // Classify the photo
+    await classifySinglePhoto(env, photo, logger);
 }

@@ -3,7 +3,7 @@ import {
     getPhotoById,
     getPhotoClassification,
 } from '../db/classification-queries';
-import { classifyPhotos } from '../classifiers/photo-classifier';
+import { classifyPhotoById } from '../classifiers/photo-classifier';
 
 /**
  * Handle test classification endpoint
@@ -65,8 +65,8 @@ export async function handleTestClassify(
                     .run();
             }
 
-            // Classify this photo
-            await classifyPhotos(env, 1);
+            // Classify this specific photo
+            await classifyPhotoById(env, photoId);
 
             // Get updated classification
             classification = await getPhotoClassification(env.DB, photoId);
