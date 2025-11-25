@@ -46,7 +46,7 @@ CREATE TABLE photo_classifications (
     all_tags_searchable TEXT NOT NULL,
     
     -- Classification metadata
-    classification_status VARCHAR NOT NULL DEFAULT 'pending',
+    classification_status VARCHAR NOT NULL DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
     confidence_score REAL,
     retry_count INTEGER DEFAULT 0,
     last_attempt_ts INTEGER,
@@ -166,7 +166,7 @@ END;
 interface PhotoClassification {
   photo_id: string;
   all_tags_searchable: string;    // Space-separated tags
-  classification_status: 'pending' | 'completed' | 'failed';
+  classification_status: 'pending' | 'processing' | 'completed' | 'failed';
   confidence_score: number | null;
   retry_count: number;
   last_attempt_ts: number | null;
@@ -439,15 +439,37 @@ async function getUnclassifiedPhotos(
   db: D1Database, 
   limit: number = 5
 ): Promise<Photo[]> {
-  return await db.prepare(`
+  const now = Math.floor(Date.now() / 1000);
+  const timeoutThreshold = now - 300; // 5 minutes ago
+
+  // 1. Select candidates
+  const photos = await db.prepare(`
     SELECT p.*
     FROM photos p
     LEFT JOIN photo_classifications pc ON p.photo_id = pc.photo_id
     WHERE pc.photo_id IS NULL 
        OR (pc.classification_status = 'failed' AND pc.retry_count < 3)
+       OR (pc.classification_status = 'processing' AND pc.last_attempt_ts < ?)
     ORDER BY p.created_ts DESC
     LIMIT ?
-  `).bind(limit).all();
+  `).bind(timeoutThreshold, limit).all<Photo>();
+
+  // 2. Mark as processing immediately (Locking)
+  if (photos.results.length > 0) {
+    const placeholders = photos.results.map(() => '?').join(',');
+    const ids = photos.results.map(p => p.photo_id);
+    
+    await db.prepare(`
+      INSERT INTO photo_classifications (photo_id, classification_status, last_attempt_ts, all_tags_searchable)
+      VALUES ${photos.results.map(() => '(?, "processing", ?, "")').join(',')}
+      ON CONFLICT(photo_id) DO UPDATE SET
+        classification_status = 'processing',
+        last_attempt_ts = excluded.last_attempt_ts,
+        retry_count = retry_count + 1
+    `).bind(...ids.flatMap(id => [id, now])).run();
+  }
+
+  return photos.results;
 }
 ```
 

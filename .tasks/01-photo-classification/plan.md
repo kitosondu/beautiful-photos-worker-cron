@@ -30,10 +30,11 @@ This document outlines the plan for implementing automatic photo classification 
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│  1. Query Unclassified Photos (LIMIT 5)                     │
-│     SELECT * FROM photos WHERE photo_id NOT IN              │
-│     (SELECT photo_id FROM photo_classifications             │
-│      WHERE status = 'completed')                            │
+│  1. Query & Lock Unclassified Photos (LIMIT 5)              │
+│     - Select photos where status IS NULL                    │
+│       OR (status = 'failed' AND retry_count < 3)            │
+│       OR (status = 'processing' AND last_attempt < 5m ago)  │
+│     - IMMEDIATE UPDATE: Set status = 'processing'           │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -118,6 +119,14 @@ This document outlines the plan for implementing automatic photo classification 
   - Balance between throughput and reliability
   - Can be increased if multi-image API calls work
 
+### Concurrency & State Management
+- **Race Condition Prevention**:
+  - Use `processing` status to lock photos during analysis
+  - "Stuck" processing items (older than 5 mins) are reset/retried
+- **Tag Deduplication**:
+  - Use `INSERT OR IGNORE` for tag dictionary to prevent errors
+  - Cache frequently used tag IDs in memory if possible
+
 ### Performance Considerations
 - **CPU Time Budget**: ~10ms per execution
 - **Network Time**: Not limited (API calls don't count)
@@ -154,9 +163,11 @@ See [categorization-schema.md](./categorization-schema.md) for detailed breakdow
 
 ### Retry Strategy
 - **Max Retries**: 3 attempts
-- **Retry Logic**: Simple - process on next cron run
+- **Retry Logic**: 
+  - Failed items picked up by next cron run
+  - 'Processing' items older than 5 mins considered timed out/failed
 - **Backoff**: None (cron runs every minute anyway)
-- **Permanent Failure**: After 3 attempts, mark as permanently failed
+- **Permanent Failure**: After 3 attempts, mark as permanently failed (ignored by query)
 
 ### Error Types
 1. **API Errors**: Network issues, rate limits, timeouts
