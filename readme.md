@@ -14,6 +14,7 @@ __Локальная разработка:__
 # Применить обе миграции по порядку
 ./node_modules/.bin/wrangler d1 execute unsplash_photos --local --file=./src/migrations/20241125000000_init.sql
 ./node_modules/.bin/wrangler d1 execute unsplash_photos --local --file=./src/migrations/20241125010000_photo_classifications.sql
+./node_modules/.bin/wrangler d1 execute unsplash_photos --file=./src/migrations/20241125020000_fix_fts_table.sql
 ```
 
 __Production:__
@@ -29,7 +30,7 @@ __Production:__
 Список переменных см. в `.dev.vars.example`. Добавлять необходимо через командную строку, например
 
 ```
-npx wrangler secret put UNSPLASH_CLIENT_ID
+npx wrangler secret put OPENROUTER_API_KEY
 ```
 
 потому что если добавить через веб-интерфейс, при развертывании через скрипт они будут затерты.

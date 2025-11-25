@@ -14,7 +14,7 @@ async function fetch(
     // Manual classification trigger
     if (url.pathname === '/classify-photos') {
         try {
-            const stats = await classifyPhotos(env, 10);
+            const stats = await classifyPhotos(env, 5);
             return Response.json({
                 success: true,
                 stats,
@@ -63,15 +63,31 @@ async function scheduled(
     ctx: ExecutionContext
 ): Promise<void> {
     try {
-        // 1. Clean up expired access tokens (existing functionality)
-        const now = Math.round(new Date().getTime() / 1000);
-        const expireTime = now - 60 * 20; // 20 minutes ago
-        await env.DB.prepare(`DELETE FROM access_tokens WHERE created_ts < ?`)
-            .bind(expireTime)
-            .run();
+        switch (controller.cron) {
+            case '*/5 * * * *':
+                // Clean up expired access tokens
+                const now = Math.round(new Date().getTime() / 1000);
+                const expireTime = now - 60 * 20; // 20 minutes ago
+                await env.DB.prepare(
+                    `DELETE FROM access_tokens WHERE created_ts < ?`
+                )
+                    .bind(expireTime)
+                    .run();
 
-        // 2. Classify photos (new functionality)
-        await classifyPhotos(env, 5);
+                // Clean up classification logs older than 60 days
+                const logExpireTime = now - 60 * 60 * 24 * 60; // 60 days ago
+                await env.DB.prepare(
+                    `DELETE FROM classification_logs WHERE created_ts < ?`
+                )
+                    .bind(logExpireTime)
+                    .run();
+                break;
+
+            case '* * * * *':
+                // Classify photos
+                await classifyPhotos(env, 5);
+                break;
+        }
 
         console.log('Cron processed successfully');
     } catch (error) {
