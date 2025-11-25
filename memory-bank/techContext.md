@@ -40,6 +40,17 @@
 - Dependency update checker
 - Helps maintain current package versions
 
+### External Services
+
+#### OpenRouter API
+- **Service**: AI model gateway (openrouter.ai)
+- **Model**: Google Gemma 3 27B Instruction Tuned
+- **Primary**: `google/gemma-3-27b-it:free` (free tier)
+- **Fallback**: `google/gemma-3-27b-it` (paid tier)
+- **Purpose**: Photo classification and tag generation
+- **Authentication**: Bearer token via `OPENROUTER_API_KEY`
+- **Endpoint**: `https://openrouter.ai/api/v1/chat/completions`
+
 ## Development Setup
 
 ### Prerequisites
@@ -65,7 +76,9 @@ npm run deploy      # Deploy to Cloudflare Workers
 ### wrangler.jsonc
 - Worker name: "unsplash-for-chrome-cron"
 - Compatibility date: 2025-03-13
-- Cron schedule: `*/5 * * * *` (every 5 minutes)
+- Cron schedules:
+  - `*/5 * * * *` - Database cleanup (every 5 minutes)
+  - `* * * * *` - Photo classification (every minute)
 - Smart Placement: enabled
 - Observability: enabled
 - D1 database binding configured
@@ -122,43 +135,76 @@ npm run deploy      # Deploy to Cloudflare Workers
 ## Dependencies
 
 ### Production Dependencies
-None - zero production dependencies
+None - zero production dependencies (all external services accessed via HTTP)
 
 ### Development Dependencies
-- `@cloudflare/workers-types` - TypeScript definitions
+- `@cloudflare/workers-types` - TypeScript definitions for Cloudflare Workers
 - `typescript` - TypeScript compiler
-- `wrangler` - Cloudflare Workers tooling
+- `wrangler` - Cloudflare Workers tooling and deployment
 - `vitest` - Testing framework
-- `npm-check-updates` - Dependency management
+- `npm-check-updates` - Dependency management utility
+
+### External API Dependencies
+- **OpenRouter API**: Photo classification via Gemma 3 27B model
+  - Free tier: `google/gemma-3-27b-it:free`
+  - Paid tier: `google/gemma-3-27b-it` (automatic fallback)
 
 ## Environment Variables
 
-### Development (.dev.vars.example)
-- Example file exists for local development
-- Contains template for environment variables
-- Not used in current implementation (no vars configured)
+### Development (.dev.vars)
+```bash
+OPENROUTER_API_KEY=your_api_key_here
+ENVIRONMENT=development  # Optional, for logger verbosity
+```
 
-### Production
-- Database binding configured in wrangler.jsonc
-- No additional environment variables required
-- Secrets managed via Wrangler if needed
+### Production (Secrets)
+Set via Wrangler CLI:
+```bash
+wrangler secret put OPENROUTER_API_KEY
+wrangler secret put ENVIRONMENT  # Optional
+```
+
+### Environment Interface
+```typescript
+interface Env {
+  DB: D1Database;
+  OPENROUTER_API_KEY: string;
+  ENVIRONMENT?: 'development' | 'production';
+}
+```
+
+### Required Variables
+- `DB` - Cloudflare D1 database binding (configured in wrangler.jsonc)
+- `OPENROUTER_API_KEY` - API key for OpenRouter service (required for classification)
+
+### Optional Variables
+- `ENVIRONMENT` - Controls logger verbosity (development = verbose, production = minimal)
 
 ## Deployment Configuration
 
 ### Smart Placement
 - Automatically routes worker execution
 - Places worker near D1 database for optimal performance
-- Reduces latency
+- Reduces latency for both classification and cleanup operations
 
 ### Observability
 - Enabled in wrangler.jsonc
 - Provides metrics and logging
 - Accessible via Cloudflare dashboard
+- Custom logging via WorkerLogger class (console + database)
 
 ### Cron Triggers
 - Managed by Cloudflare's scheduler
-- Defined in wrangler.jsonc
+- Two schedules defined in wrangler.jsonc:
+  1. `* * * * *` - Photo classification (every minute)
+  2. `*/5 * * * *` - Database cleanup (every 5 minutes)
 - Cannot be changed without redeployment
+
+### HTTP Endpoints
+- `/` - Health check response
+- `/classify-photos` - Manual batch classification trigger
+- `/test-classify?photo_id=X` - Single photo test with HTML interface
+- `/stats` - Classification statistics JSON
 
 ## Integration Points
 
@@ -167,12 +213,28 @@ None - zero production dependencies
 - D1 database management
 - Cron execution history
 - Error monitoring
+- Real-time tail logs: `wrangler tail`
 
-### Related Repository
-- Main worker: "Beautiful Photos Worker"
-- Shared D1 database: unsplash_photos
-- Database schema: `src/migrations/init.sql` (copied from main worker)
-- Complementary functionality
+### OpenRouter Dashboard
+- API usage monitoring
+- Cost tracking (free vs paid tier usage)
+- Rate limit information
+- Model availability status
+
+### Related Repositories
+- **Main Worker**: "Beautiful Photos Worker"
+  - Serves photos API
+  - Populates photos table
+  - Extension backend
+- **Extension**: "Beautiful Photos Chrome Extension"
+  - Queries classified photos
+  - Filters by tags/categories
+  - User interface
+
+### Shared Resources
+- D1 database: `unsplash_photos`
+- Database schema coordination required
+- Classification data consumed by Extension
 
 ## Version Control
 
