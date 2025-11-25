@@ -52,8 +52,8 @@ async function callOpenRouterAPI(
         headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://beautiful-photos.app',
-            'X-Title': 'Beautiful Photos Classification',
+            'HTTP-Referer': 'https://beautiful-photos.com',
+            'X-Title': 'Beautiful Photos',
         },
         body: JSON.stringify(request),
     });
@@ -67,11 +67,36 @@ async function callOpenRouterAPI(
 
     const data: OpenRouterResponse = await response.json();
 
+    // Log full API response for debugging
+    console.log('[DEBUG] OpenRouter API response:', {
+        model,
+        has_choices: !!data.choices,
+        choices_length: data.choices?.length || 0,
+        first_choice: data.choices?.[0]
+            ? {
+                  finish_reason: data.choices[0].finish_reason,
+                  message_role: data.choices[0].message?.role,
+                  content_length: data.choices[0].message?.content?.length || 0,
+                  content_preview:
+                      data.choices[0].message?.content?.substring(0, 200) || '',
+              }
+            : null,
+        usage: data.usage,
+        error: data.error,
+    });
+
     if (!data.choices || data.choices.length === 0) {
         throw new Error('OpenRouter API returned no choices');
     }
 
     const content = data.choices[0].message.content;
+
+    if (!content || content.length === 0) {
+        throw new Error(
+            `OpenRouter API returned empty content. Model: ${model}, finish_reason: ${data.choices[0].finish_reason}`
+        );
+    }
+
     return parseClassificationResponse(content);
 }
 

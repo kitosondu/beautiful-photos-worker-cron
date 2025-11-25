@@ -114,6 +114,10 @@ export interface OpenRouterResponse {
         completion_tokens: number;
         total_tokens: number;
     };
+    error?: {
+        code: number;
+        message: string;
+    };
 }
 
 // Environment bindings

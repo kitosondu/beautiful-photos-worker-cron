@@ -149,10 +149,10 @@ export class WorkerLogger {
                     log.timestamp,
                     log.photo_id,
                     log.event_type,
-                    log.model_used,
-                    log.error_message,
-                    log.processing_time_ms,
-                    log.confidence_score
+                    log.model_used ?? null,
+                    log.error_message ?? null,
+                    log.processing_time_ms ?? null,
+                    log.confidence_score ?? null
                 )
                 .run();
         } catch (error) {

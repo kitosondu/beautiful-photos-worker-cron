@@ -41,8 +41,8 @@ google/gemma-3-27b-it
 headers: {
   'Authorization': `Bearer ${env.OPENROUTER_API_KEY}`,
   'Content-Type': 'application/json',
-  'HTTP-Referer': 'https://beautiful-photos.example.com', // Optional
-  'X-Title': 'Beautiful Photos Classification' // Optional
+  'HTTP-Referer': 'https://beautiful-photos.com', // Optional
+  'X-Title': 'Beautiful Photos' // Optional
 }
 ```
 
@@ -262,8 +262,8 @@ async function callOpenRouterAPI(
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://beautiful-photos.example.com',
-      'X-Title': 'Beautiful Photos Classification'
+      'HTTP-Referer': 'https://beautiful-photos.com',
+      'X-Title': 'Beautiful Photos'
     },
     body: JSON.stringify({
       model, // Use provided model (free or paid)
