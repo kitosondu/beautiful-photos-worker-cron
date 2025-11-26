@@ -115,21 +115,26 @@ export async function classifyPhotoWithFallback(
     logger: WorkerLogger,
     photoId: string
 ): Promise<{ result: ClassificationResult; modelUsed: 'free' | 'paid' }> {
-    try {
-        // Try free model first
-        const result = await callOpenRouterAPI(photoUrl, apiKey, FREE_MODEL);
-        return { result, modelUsed: 'free' };
-    } catch (error) {
-        // Log fallback to paid model
-        await logger.warn('Falling back to paid model', {
-            photo_id: photoId,
-            error: error instanceof Error ? error.message : String(error),
-        });
+    // UPDATE: free model works in less than 10% of requests,
+    // so we always use paid model for now
+    const result = await callOpenRouterAPI(photoUrl, apiKey, PAID_MODEL);
+    return { result, modelUsed: 'paid' };
 
-        // Try paid model
-        const result = await callOpenRouterAPI(photoUrl, apiKey, PAID_MODEL);
-        return { result, modelUsed: 'paid' };
-    }
+    // try {
+    //     // Try free model first
+    //     const result = await callOpenRouterAPI(photoUrl, apiKey, FREE_MODEL);
+    //     return { result, modelUsed: 'free' };
+    // } catch (error) {
+    //     // Log fallback to paid model
+    //     await logger.warn('Falling back to paid model', {
+    //         photo_id: photoId,
+    //         error: error instanceof Error ? error.message : String(error),
+    //     });
+
+    //     // Try paid model
+    //     const result = await callOpenRouterAPI(photoUrl, apiKey, PAID_MODEL);
+    //     return { result, modelUsed: 'paid' };
+    // }
 }
 
 /**
