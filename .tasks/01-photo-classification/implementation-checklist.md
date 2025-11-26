@@ -240,7 +240,7 @@ async function scheduled(
     await cleanupExpiredTokens(env);
     
     // New: Classify photos
-    await classifyPhotos(env, 5);
+    await classifyPhotos(env, 3);
     
     console.log('Cron processed successfully');
   } catch (error) {
@@ -275,7 +275,7 @@ async function fetch(request: Request, env: Env, ctx: ExecutionContext) {
   
   // Batch classification
   if (url.pathname === '/classify-photos') {
-    const stats = await classifyPhotos(env, 10);
+    const stats = await classifyPhotos(env, 3);
     return Response.json({ success: true, stats });
   }
   
@@ -333,9 +333,9 @@ interface Env {
 
 ---
 
-## Phase 7: Testing 🚧 IN PROGRESS
+## Phase 7: Testing ✅ COMPLETE (except automated tests)
 
-### 7.1 Unit Tests
+### 7.1 Unit Tests ⏳ DEFERRED
 - [ ] Create test file `test/logger.spec.ts` for logger
 - [ ] Create test file `test/classification.spec.ts`
 - [ ] Test URL generation function
@@ -343,55 +343,59 @@ interface Env {
 - [ ] Test validation functions
 - [ ] Mock OpenRouter API responses
 
-### 7.2 Integration Tests
+**Note:** Automated unit tests deferred for future implementation.
+
+### 7.2 Integration Tests ⏳ DEFERRED
 - [ ] Test database operations locally
 - [ ] Test full classification flow with mock data
 - [ ] Test error handling paths
 - [ ] Test retry logic
 
-### 7.3 Manual Testing
+**Note:** Automated integration tests deferred for future implementation.
+
+### 7.3 Manual Testing ✅ COMPLETE
 
 **Using Test Endpoint:**
-- [ ] Run local dev server: `npm run dev`
-- [ ] Open browser: `http://localhost:8787/test-classify?photo_id=YOUR_PHOTO_ID`
-- [ ] Verify HTML displays correctly with photo and classification
-- [ ] Check if model used is shown (free/paid)
-- [ ] Verify data saved to database
-- [ ] Test with invalid photo_id (should show error page)
+- [x] Run local dev server: `npm run dev` ✅
+- [x] Open browser: `http://localhost:8787/test-classify?photo_id=YOUR_PHOTO_ID` ✅
+- [x] Verify HTML displays correctly with photo and classification ✅
+- [x] Check if model used is shown (free/paid) ✅
+- [x] Verify data saved to database ✅
+- [x] Test with invalid photo_id (should show error page) ✅
 
 **Using Batch Endpoint:**
-- [ ] Trigger manual classification: `curl http://localhost:8787/classify-photos`
-- [ ] Check logs for errors
-- [ ] Verify database updates
+- [x] Trigger manual classification: `curl http://localhost:8787/classify-photos` ✅
+- [x] Check logs for errors ✅
+- [x] Verify database updates ✅
 
 **Test Checklist:**
-- [ ] Photos without people
-- [ ] Photos with close people (portrait, <2m, >30% frame)
-- [ ] Photos with distant people
-- [ ] Different content types (nature, urban, architecture, etc.)
-- [ ] Edge cases (blurred, dark photos, etc.)
-- [ ] Free model works (most cases)
-- [ ] Fallback to paid model works (simulate by using invalid free model)
-- [ ] Logging works (check console and database)
+- [x] Photos without people ✅
+- [x] Photos with close people (portrait, <2m, >30% frame) ✅
+- [x] Photos with distant people ✅
+- [x] Different content types (nature, urban, architecture, etc.) ✅
+- [x] Edge cases (blurred, dark photos, etc.) ✅
+- [x] Free model works (most cases) ✅
+- [x] Fallback to paid model works ✅
+- [x] Logging works (check console and database) ✅
 
 ---
 
-## Phase 8: Deployment
+## Phase 8: Deployment ✅ COMPLETE
 
 ### 8.1 Pre-Deployment Checks
-- [ ] All tests passing
-- [ ] No TypeScript errors
-- [ ] Code reviewed and cleaned up
-- [ ] Logging is appropriate (not too verbose)
-- [ ] Error handling is comprehensive
+- [x] All tests passing (manual tests completed) ✅
+- [x] No TypeScript errors ✅
+- [x] Code reviewed and cleaned up ✅
+- [x] Logging is appropriate (not too verbose) ✅
+- [x] Error handling is comprehensive ✅
 
 ### 8.2 Deploy Database Migration
-- [ ] Backup production database (if possible)
-- [ ] Run migration in production
+- [x] Backup production database (if possible) ✅
+- [x] Run migration in production ✅
 ```bash
 wrangler d1 execute unsplash_photos --file=./src/migrations/20241125010000_photo_classifications.sql
 ```
-- [ ] Verify tables created successfully
+- [x] Verify tables created successfully ✅
 ```sql
 -- Verify tables exist
 SELECT name FROM sqlite_master WHERE type='table' 
@@ -402,30 +406,30 @@ SELECT name FROM sqlite_master WHERE type='table' AND name='photo_classification
 ```
 
 ### 8.3 Deploy Worker
-- [ ] Deploy to production
+- [x] Deploy to production ✅
 ```bash
 npm run deploy
 ```
-- [ ] Verify deployment successful
-- [ ] Check worker logs in Cloudflare dashboard
+- [x] Verify deployment successful ✅
+- [x] Check worker logs in Cloudflare dashboard ✅
 
 ### 8.4 Set Production Secrets
-- [ ] Set `OPENROUTER_API_KEY` secret
+- [x] Set `OPENROUTER_API_KEY` secret ✅
 ```bash
 wrangler secret put OPENROUTER_API_KEY
 ```
 
 ---
 
-## Phase 9: Monitoring & Validation
+## Phase 9: Monitoring & Validation 🚧 IN PROGRESS
 
 ### 9.1 Initial Monitoring
-- [ ] Monitor Cloudflare Worker logs (real-time via Dashboard or `wrangler tail`)
-- [ ] Check cron execution frequency
-- [ ] Verify classifications are being saved to all 3 tables
-- [ ] Monitor API usage and costs (check for paid model usage)
-- [ ] Check for errors in logs (both console and database)
-- [ ] Monitor model fallback frequency (should be <10%)
+- [x] Monitor Cloudflare Worker logs (real-time via Dashboard or `wrangler tail`) ✅
+- [x] Check cron execution frequency ✅
+- [x] Verify classifications are being saved to all 3 tables ✅
+- [ ] Monitor API usage and costs (check for paid model usage) - **Ongoing**
+- [x] Check for errors in logs (both console and database) ✅
+- [ ] Monitor model fallback frequency (should be <10%) - **Ongoing**
 
 ### 9.2 Data Validation
 - [ ] Query database for classification stats

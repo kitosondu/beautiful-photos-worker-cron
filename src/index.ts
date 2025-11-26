@@ -14,7 +14,7 @@ async function fetch(
     // Manual classification trigger
     if (url.pathname === '/classify-photos') {
         try {
-            const stats = await classifyPhotos(env, 5);
+            const stats = await classifyPhotos(env, 3);
             return Response.json({
                 success: true,
                 stats,
@@ -85,7 +85,7 @@ async function scheduled(
 
             case '* * * * *':
                 // Classify photos
-                await classifyPhotos(env, 5);
+                await classifyPhotos(env, 3);
                 break;
         }
 

@@ -25,7 +25,7 @@ import {
  */
 export async function classifyPhotos(
     env: Env,
-    limit: number = 5
+    limit: number = 3
 ): Promise<ClassificationStats> {
     const logger = new WorkerLogger(env, 'photo-classifier');
     const stats: ClassificationStats = {
