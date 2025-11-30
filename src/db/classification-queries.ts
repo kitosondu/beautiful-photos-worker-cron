@@ -304,6 +304,7 @@ export async function getClassificationStats(db: D1Database): Promise<{
             `SELECT
                 COUNT(DISTINCT p.photo_id) as total_photos,
                 COUNT(DISTINCT CASE WHEN pc.classification_status = 'completed' THEN pc.photo_id END) as classified,
+                0 as classified_percent,
                 COUNT(DISTINCT CASE WHEN pc.classification_status = 'pending' OR pc.photo_id IS NULL THEN p.photo_id END) as pending,
                 COUNT(DISTINCT CASE WHEN pc.classification_status = 'failed' THEN pc.photo_id END) as failed,
                 COUNT(DISTINCT CASE WHEN pc.classification_status = 'processing' THEN pc.photo_id END) as processing
@@ -313,15 +314,23 @@ export async function getClassificationStats(db: D1Database): Promise<{
         .first<{
             total_photos: number;
             classified: number;
+            classified_percent: number;
             pending: number;
             failed: number;
             processing: number;
         }>();
 
+    if (result) {
+        result.classified_percent = result?.total_photos
+            ? Math.round((result.classified / result.total_photos) * 100)
+            : 0;
+    }
+
     return (
         result || {
             total_photos: 0,
             classified: 0,
+            classified_percent: 0,
             pending: 0,
             failed: 0,
             processing: 0,
